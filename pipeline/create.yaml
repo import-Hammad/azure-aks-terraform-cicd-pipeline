@@ -1,84 +1,107 @@
-# azure-pipelines.yml
 trigger:
+  batch: true
   branches:
     include:
-    - main
-    - feature/*
+      - main
+      - feature/*
   paths:
     include:
-    - terraform/*
-
-variables:
-  - group: terraform-secrets
+      - dev/*
+      - staging/*
+      - modules/*
+      - pipeline/*
+      - azure-pipelines.yml
 
 stages:
-- stage: Validate
+- stage: validate
   jobs:
-  - job: terraform_validate
+  - job: tf_validate
     pool:
-      vmImage: 'ubuntu-latest'
+      vmImage: ubuntu-latest
     steps:
-    - task: TerraformInstaller@0
+    - checkout: self
+
+    - task: TerraformInstaller@1
       inputs:
-        terraformVersion: '1.5.7'
-    
-    - task: TerraformTaskV4@4
+        terraformVersion: 'latest'
+
+    - task: TerraformTask@5
       inputs:
         provider: 'azurerm'
         command: 'init'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/dev'
-        backendServiceArm: 'Azure-Service-Connection'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/dev'
+        backendServiceArm: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
         backendAzureRmResourceGroupName: 'terraform-state-rg'
-        backendAzureRmStorageAccountName: 'tfstatedev2024'
+        backendAzureRmStorageAccountName: 'tfdevbackendhammad2026'
         backendAzureRmContainerName: 'tfstate'
         backendAzureRmKey: 'dev.terraform.tfstate'
-    
-    - task: TerraformTaskV4@4
+
+    - task: TerraformTask@5
       inputs:
         provider: 'azurerm'
         command: 'validate'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/dev'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/dev'
 
-- stage: Dev_Deploy
+- stage: dev_deploy
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
-  - deployment: terraform_apply_dev
-    environment: dev
+  - job: terraform_apply_dev
     pool:
       vmImage: 'ubuntu-latest'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - task: TerraformInstaller@0
-            inputs:
-              terraformVersion: '1.5.7'
-          
-          - task: TerraformTaskV4@4
-            inputs:
-              provider: 'azurerm'
-              command: 'apply'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/dev'
-              environmentServiceNameAzureRM: 'Azure-Service-Connection'
+    steps:
+    - checkout: self
 
-- stage: Test_Deploy
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/dev'
+        backendServiceArm: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
+        backendAzureRmResourceGroupName: 'terraform-state-rg'
+        backendAzureRmStorageAccountName: 'tfdevbackendhammad2026'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'dev.terraform.tfstate'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/dev'
+        commandOptions: '--auto-approve'
+        environmentServiceNameAzureRM: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
+
+- stage: stage_deploy
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
-  - deployment: terraform_apply_test
-    environment: test
+  - job: terraform_apply
     pool:
       vmImage: 'ubuntu-latest'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - task: TerraformInstaller@0
-            inputs:
-              terraformVersion: '1.5.7'
-          
-          - task: TerraformTaskV4@4
-            inputs:
-              provider: 'azurerm'
-              command: 'apply'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/test'
-              environmentServiceNameAzureRM: 'Azure-Service-Connection'
+    steps:
+    - checkout: self
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/staging'
+        backendServiceArm: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
+        backendAzureRmResourceGroupName: 'terraform-state-rg'
+        backendAzureRmStorageAccountName: 'tfstagebackendhammad2026'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'stage.terraform.tfstate'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/staging'
+        commandOptions: '--auto-approve'
+        environmentServiceNameAzureRM: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
