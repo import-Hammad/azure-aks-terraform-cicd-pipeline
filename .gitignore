@@ -1,0 +1,30 @@
+# Local Terraform directories & provider binaries
+**/.terraform/*
+.terraform/
+
+# Local Terraform state files (we use remote Azure Blob Storage)
+*.tfstate
+*.tfstate.*
+
+# Crash logs & override files
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Generated Kubernetes config & local plan files
+kubeconfig
+**/kubeconfig
+*.tfplan
+
+# Private SSH keys (NEVER commit private keys, but allow .pub public keys)
+**/.ssh/id_rsa
+**/.ssh/*.pem
+!**/.ssh/*.pub
+
+# OS & Editor temporary files
+.DS_Store
+Thumbs.db
+.vscode/

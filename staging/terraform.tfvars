@@ -1,0 +1,6 @@
+rgname                 = "stage-hammad-rg"
+service_principal_name = "stage-hammad-spn"
+keyvault_name          = "stage-hammad-kv-101"
+SUB_ID = ""
+node_pool_name = "stagenp"
+cluster_name = "stage-hammad-cluster"

@@ -1,0 +1,107 @@
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+      - feature/*
+  paths:
+    include:
+      - dev/*                   # <--- CHANGED: Removed 'project/' prefix and listed root folders
+      - staging/*               # <--- ADDED
+      - modules/*               # <--- ADDED
+      - pipeline/*              # <--- ADDED
+      - azure-pipelines.yml
+
+stages:
+- stage: validate
+  jobs:
+  - job: tf_validate
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self            # <--- ADDED: Explicitly fetches your repo files onto the agent
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/dev'      # <--- CHANGED: Removed '/project'
+        backendServiceArm: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
+        backendAzureRmResourceGroupName: 'terraform-state-rg'
+        backendAzureRmStorageAccountName: 'tfdevbackendhammad2026'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'dev.terraform.tfstate'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/dev'      # <--- CHANGED: Removed '/project'
+
+- stage: dev_deploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: terraform_apply_dev
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self            # <--- ADDED: Explicitly fetches your repo files onto the agent
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/dev'      # <--- CHANGED: Removed '/project'
+        backendServiceArm: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
+        backendAzureRmResourceGroupName: 'terraform-state-rg'
+        backendAzureRmStorageAccountName: 'tfdevbackendhammad2026'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'dev.terraform.tfstate'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/dev'      # <--- CHANGED: Removed '/project'
+        commandOptions: '--auto-approve'
+        environmentServiceNameAzureRM: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
+
+- stage: stage_deploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: terraform_apply
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self            # <--- ADDED: Explicitly fetches your repo files onto the agent
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/staging'  # <--- CHANGED: Removed '/project'
+        backendServiceArm: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
+        backendAzureRmResourceGroupName: 'terraform-state-rg'
+        backendAzureRmStorageAccountName: 'tfstagebackendhammad2026'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'stage.terraform.tfstate'
+
+    - task: TerraformTask@5
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/staging'  # <--- CHANGED: Removed '/project'
+        commandOptions: '--auto-approve'
+        environmentServiceNameAzureRM: 'Azure subscription 1(<YOUR_SUBSCRIPTION_ID>)'
